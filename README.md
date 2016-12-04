@@ -34,9 +34,9 @@ Including an example of how to use your role (for instance, with variables passe
        freebsd_jails_base_template_name: base-11-0
        freebsd_jail_template_pkg:
        - "curl"
-      - "wget"
-      - "vim-lite"
-      - "ncdu"
+       - "wget"
+       - "vim-lite"
+       - "ncdu"
      - role: bvansomeren.freebsd-jail-template
        freebsd_jails_base_template_name: java8-11-0
        freebsd_jail_template_pkg:
