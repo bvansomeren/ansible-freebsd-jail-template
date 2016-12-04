@@ -1,0 +1,36 @@
+---
+# defaults file for bvansomeren.freebsd-jail-template
+
+freebsd_jail_template_default_pkg:
+- "python"
+
+freebsd_jail_template_pkg: []
+freebsd_jail_template_all_pkg:    "{{ freebsd_jail_template_default_pkg + freebsd_jail_template_pkg }}"
+
+freebsd_jails_template_if:          "em0"
+freebsd_jails_template_ip:          "10.0.1.30"
+freebsd_jails_template_pkgs_prop:   "org:freebsd:packages"
+
+freebsd_jails_location:             "/usr/local/jails"
+freebsd_jails_dataset:              "zroot/jails"
+freebsd_jails_template_dataset:     "zroot/jails/templates"
+freebsd_jails_template_mount:       "{{ freebsd_jails_location }}/templates"
+freebsd_jails_template_download:    "/tmp/jails-template-releases"
+freebsd_downloadsite:               "ftp://ftp.freebsd.org/pub/FreeBSD/releases/amd64/"
+
+freebsd_jails_default_install:
+- file: "base.txz"
+  creates: "bin/"
+- file: "lib32.txz"
+  creates: "libexec/ld-elf32.so.1"
+
+freebsd_jails_minimal_conf:
+- "etc/resolv.conf"
+- "etc/localtime"
+
+freebsd_jails_release:              "11.0-RELEASE"
+freebsd_jails_base_template_name:   "base110"
+freebsd_jails_template_snapshot:    "latest"
+freebsd_jails_template_version:     "{{ ansible_date_time.iso8601_micro }}"
+
+
