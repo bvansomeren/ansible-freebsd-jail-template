@@ -13,8 +13,75 @@ FreeBSD with ZFS
 
 Role Variables
 --------------
+```
+freebsd_jail_template_default_pkg:
+-"python"
+```
+The default packages that should always be part of the template. For example, curl or sudo. Python is chosen here because it's required by Ansible.
+Custom packages can be provided with:
 
-TODO: Check the defaults
+```
+freebsd_jail_template_pkg: []
+```
+The **freebsd\_jail\_template\_default\_pkg** and **freebsd\_jail\_template\_pkg** are combined and installed in one go into the template.
+
+```
+freebsd_jails_template_if:          "em0"
+freebsd_jails_template_ip:          "10.0.1.30"
+```
+
+**freebsd\_jails\_template\_if** sets the interface used for installing packages into the template (so it's only used for install)  
+**freebsd\_jails\_template\_ip** select an available IP that can download packages.
+
+```
+freebsd_jails_template_pkgs_prop:   "org:freebsd:packages"
+```
+This variable allows storing the installed packages and their versions as a ZFS property. 
+
+```
+freebsd_jails_location:             "/usr/local/jails"
+freebsd_jails_dataset:              "zroot/jails"
+freebsd_jails_template_dataset:     "zroot/jails/templates"
+freebsd_jails_template_mount:       "{{ freebsd_jails_location }}/templates"
+freebsd_jails_template_download:    "/tmp/jails-template-releases"
+freebsd_downloadsite:               "ftp://ftp.freebsd.org/pub/FreeBSD/releases/amd64/"
+```
+
+**freebsd\_jails\_location** where to mount the jails onto the host filesystem.  
+**freebsd\_jails\_dataset** which ZFS dataset to place the jails under.  
+**freebsd\_jails\_template\_dataset** which ZFS dataset to store the resulting templates under.  
+**freebsd\_jails\_template\_mount** where to mount the templates under the host filesystem.  
+**freebsd\_jails\_template\_download** where to store the FreeBSD txz files on the host.  
+**freebsd\_downloadsite** where to grab the FreeBSD txz files from (defaults to the project)  
+
+```
+freebsd_jails_default_install:
+- file: "base.txz"
+  creates: "bin/"
+- file: "lib32.txz"
+  creates: "libexec/ld-elf32.so.1"
+```
+
+**freebsd\_jails\_default\_install** determines which bits to download for the FreeBSD base install; The creates folder specifies a file or folder that will be present after the initial unpack so that we don't repeat the process.
+
+```
+freebsd_jails_minimal_conf:
+- "etc/resolv.conf"
+- "etc/localtime"
+```
+**freebsd\_jails\_minimal\_conf** specifies which files to include into the template. These are copied from the host.  
+
+```
+freebsd_jails_release:              "11.0-RELEASE"
+freebsd_jails_base_template_name:   "base110"
+freebsd_jails_template_version:     "{{ ansible_date_time.iso8601_micro }}"
+```
+**freebsd\_jails\_release** pretty obvious; Don't use a newer version than the host.  
+**freebsd\_jails\_base\_template\_name** the name of the template. Needs to be unique.  
+**freebsd\_jails\_template\_version** whenever anything changes a new snapshot will be made according to what is in this variable. The default uses an iso8601 timestamp.  
+
+**freebsd\_jails\_template\_user** set the username of your ssh user.  
+**freebsd\_jails\_template\_user\_keys** provide a github like url that contains the public SSH keys to be added in _authorized\_keys_ for the support user.  
 
 Dependencies
 ------------
@@ -24,7 +91,7 @@ None
 Example Playbook
 ----------------
 
-Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
+This example creates a few different templates. Only the software is installed, further configuration should be done by other playbooks.  
 
 ```
    - hosts: all
