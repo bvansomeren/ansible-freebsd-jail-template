@@ -89,10 +89,32 @@
   environment:
     ASSUME_ALWAYS_YES: "YES"
 
+- name: ensure user is created
+  command: jexec {{ freebsd_jails_base_template_name }} pw useradd {{ freebsd_jails_template_user }} -g wheel -s /bin/sh -w no -m creates={{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }}/home/{{ freebsd_jails_template_user }}
+  when: "{{ freebsd_jails_template_user is defined }}"
+  register: template_user_created
+
+- name: ensure ssh folder is setup if user is defined
+  command: jexec -U {{ freebsd_jails_template_user }} {{ freebsd_jails_base_template_name }} mkdir -p /home/{{ freebsd_jails_template_user }}/.ssh
+  when: template_user_created.changed
+
+- name: ensure key is downloaded into authorized_keys
+  command: jexec -U {{ freebsd_jails_template_user }} {{ freebsd_jails_base_template_name }} curl -o /home/{{ freebsd_jails_template_user }}/.ssh/authorized_keys {{ freebsd_jails_template_user_keys }} creates={{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }}/home/{{ freebsd_jails_template_user }}/.ssh/authorized_keys
+  register: keyloaded
+  when: template_user_created.changed
+
+- name: ensure correct folder perms .ssh
+  command: jexec -U {{ freebsd_jails_template_user }} {{ freebsd_jails_base_template_name }} chmod 700 /home/{{ freebsd_jails_template_user }}/.ssh
+  when: keyloaded.changed
+
+- name: ensure correct file perms authorized_files
+  command: jexec -U {{ freebsd_jails_template_user }} {{ freebsd_jails_base_template_name }} chmod 600 /home/{{ freebsd_jails_template_user }}/.ssh/authorized_keys
+  when: keyloaded.changed
+
 - name: create new snapshot
   command: zfs snapshot "{{ freebsd_jails_template_dataset }}/{{ freebsd_jails_base_template_name }}@{{ freebsd_jails_template_version }}"
   register: template_snapshot_created
-  when: "updates_fetched.changed or pkg_upgrade.changed or pkg_install.changed"
+  when: "updates_fetched.changed or pkg_upgrade.changed or pkg_install.changed or keyloaded.changed"
 
 - name: add packages to snapshot packages properties
   shell: zfs set {{ freebsd_jails_template_pkgs_prop }}="$(pkg -j {{ freebsd_jails_base_template_name }} info | cut -f1 -d' ')" "{{ freebsd_jails_template_dataset }}/{{ freebsd_jails_base_template_name }}@{{ freebsd_jails_template_version }}"
