@@ -82,6 +82,7 @@ freebsd_jails_template_version:     "{{ ansible_date_time.iso8601_micro }}"
 
 **freebsd\_jails\_template\_user** set the username of your ssh user.  
 **freebsd\_jails\_template\_user\_keys** provide a github like url that contains the public SSH keys to be added in _authorized\_keys_ for the support user.  
+**freebsd\_jails\_template\_user\_sudo** determine if sudo should be installed into the jail and the wheel group added by default (_TODO: make this more flexible_)
 
 Dependencies
 ------------

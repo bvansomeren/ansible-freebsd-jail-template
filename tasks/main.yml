@@ -111,10 +111,25 @@
   command: jexec -U {{ freebsd_jails_template_user }} {{ freebsd_jails_base_template_name }} chmod 600 /home/{{ freebsd_jails_template_user }}/.ssh/authorized_keys
   when: keyloaded.changed
 
+- name: ensure sudo if freebsd_jails_template_user_sudo
+  command: pkg -j {{ freebsd_jails_base_template_name }} install sudo
+  register: sudosetup
+  when: freebsd_jails_template_user_sudo
+  environment:
+    ASSUME_ALWAYS_YES: "YES"
+
+- name: ensure wheel group in sudoers without password
+  blockinfile:
+    dest: "{{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }}/usr/local/etc/sudoers.d/wheel"
+    create: yes
+    content: |
+      %wheel ALL=(ALL) NOPASSWD: ALL
+  when: freebsd_jails_template_user_sudo
+
 - name: create new snapshot
   command: zfs snapshot "{{ freebsd_jails_template_dataset }}/{{ freebsd_jails_base_template_name }}@{{ freebsd_jails_template_version }}"
   register: template_snapshot_created
-  when: "updates_fetched.changed or pkg_upgrade.changed or pkg_install.changed or keyloaded.changed"
+  when: "updates_fetched.changed or pkg_upgrade.changed or pkg_install.changed or keyloaded.changed or sudosetup.changed"
 
 - name: add packages to snapshot packages properties
   shell: zfs set {{ freebsd_jails_template_pkgs_prop }}="$(pkg -j {{ freebsd_jails_base_template_name }} info | cut -f1 -d' ')" "{{ freebsd_jails_template_dataset }}/{{ freebsd_jails_base_template_name }}@{{ freebsd_jails_template_version }}"
