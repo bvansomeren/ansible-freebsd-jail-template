@@ -10,7 +10,13 @@
     dest: "{{ freebsd_jails_template_download }}/{{ item.file }}"
   with_items: "{{ freebsd_jails_default_install }}"
 
-- name: ensure templates parent dataset
+- name: ensure jails dataset
+  zfs:
+    name: "{{ freebsd_jails_dataset }}"
+    mountpoint: "{{ freebsd_jails_location }}"
+    state: present
+
+- name: ensure templates dataset
   zfs:
     name: "{{ freebsd_jails_template_dataset }}"
     state: present
