@@ -16,7 +16,7 @@ freebsd_jails_dataset:              "zroot/jails"
 freebsd_jails_template_dataset:     "zroot/jails/templates"
 freebsd_jails_template_mount:       "{{ freebsd_jails_location }}/templates"
 freebsd_jails_template_download:    "/tmp/jails-template-releases"
-freebsd_downloadsite:               "ftp://ftp.freebsd.org/pub/FreeBSD/releases/amd64/"
+freebsd_downloadsite:               "http://ftp.freebsd.org/pub/FreeBSD/releases/amd64"
 
 freebsd_jails_default_install:
 - file: "base.txz"
