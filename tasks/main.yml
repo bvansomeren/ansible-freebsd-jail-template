@@ -74,6 +74,21 @@
 - name: ensure template jail is started
   command: jail -v -cm {{ freebsd_jails_base_template_name }}
 
+- name: ensure pkg repository override folder exists
+  file:
+    path: "{{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }}/usr/local/etc/pkg/repos/"
+    state: directory
+  when: "freebsd_jails_base_template_pkg_branch != 'quarterly'"
+
+- name: optionally set latest pkg branch over quarterly
+  blockinfile:
+    dest: "{{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }}/usr/local/etc/pkg/repos/FreeBSD.conf"
+    create: yes
+    marker: "# {mark} Ansible managed"
+    content: |
+      FreeBSD: { url: "pkg+http://pkg.FreeBSD.org/${ABI}/{{ freebsd_jails_base_template_pkg_branch }}" }
+  when: "freebsd_jails_base_template_pkg_branch != 'quarterly'"
+
 - name: ensure package db is updated in jail
   command: pkg -j {{ freebsd_jails_base_template_name }} update
   register: pkg_update

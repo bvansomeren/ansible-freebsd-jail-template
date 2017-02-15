@@ -28,6 +28,8 @@ freebsd_jails_minimal_conf:
 - "etc/resolv.conf"
 - "etc/localtime"
 
+freebsd_jails_base_template_pkg_branch: "quarterly"
+
 freebsd_jails_release:              "11.0-RELEASE"
 freebsd_jails_base_template_name:   "base110"
 freebsd_jails_template_snapshot:    "latest"
