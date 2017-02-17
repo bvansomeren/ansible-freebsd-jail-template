@@ -152,3 +152,21 @@
 
 - name: ensure template jail is stopped
   command: jail -v -r {{ freebsd_jails_base_template_name }}
+
+- name: ensure template is commented out in the /etc/jail.conf
+  blockinfile:
+    dest: /etc/jail.conf
+    create: yes
+    marker: "# {mark} Jail {{ freebsd_jails_base_template_name }}"
+    content: |
+      #{{ freebsd_jails_base_template_name }} {
+      #  exec.start = '';
+      #  exec.stop = '';
+      #  interface = {{ freebsd_jails_template_if }};
+      #  ip4.addr = {{ freebsd_jails_template_ip }}; 
+      #  mount.nodevfs;
+      #  path = "{{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }}";
+      #  persist;
+      #}
+
+
