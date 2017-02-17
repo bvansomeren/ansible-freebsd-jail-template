@@ -90,25 +90,19 @@
   when: "freebsd_jails_base_template_pkg_branch != 'quarterly'"
 
 - name: ensure package db is updated in jail
-  command: pkg -j {{ freebsd_jails_base_template_name }} update
+  command: jexec {{ freebsd_jails_base_template_name }} env ASSUME_ALWAYS_YES=yes pkg update
   register: pkg_update
   changed_when: "'All repositories are up-to-date.' not in pkg_update.stdout"
-  environment:
-    ASSUME_ALWAYS_YES: "YES"
 
 - name: ensure packages are installed 
-  command: pkg -j {{ freebsd_jails_base_template_name }} install {% for pkg in freebsd_jail_template_all_pkg %} {{ pkg }} {% endfor %}
+  command: jexec {{ freebsd_jails_base_template_name }}  env ASSUME_ALWAYS_YES=yes pkg install {% for pkg in freebsd_jail_template_all_pkg %} {{ pkg }} {% endfor %}
   register: pkg_install
   changed_when: "'The most recent version of packages are already installed' not in pkg_install.stdout"
-  environment:
-    ASSUME_ALWAYS_YES: "YES"
 
 - name: ensure packages are updated
-  command: pkg -j {{ freebsd_jails_base_template_name }} upgrade
+  command: jexec {{ freebsd_jails_base_template_name }} env ASSUME_ALWAYS_YES=yes pkg upgrade
   register: pkg_upgrade
   changed_when: "'Your packages are up to date.' not in pkg_upgrade.stdout"
-  environment:
-    ASSUME_ALWAYS_YES: "YES"
 
 - name: ensure user is created
   command: jexec {{ freebsd_jails_base_template_name }} pw useradd {{ freebsd_jails_template_user }} -g wheel -s /bin/sh -w no -m creates={{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }}/home/{{ freebsd_jails_template_user }}
