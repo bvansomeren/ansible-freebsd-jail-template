@@ -2,7 +2,9 @@
 # tasks file for bvansomeren.freebsd-jail-template
 
 - name: ensure download folder
-  file: path={{ freebsd_jails_template_download }} state=directory
+  file: 
+    path: "{{ freebsd_jails_template_download }}"
+    state: directory
 
 - name: ensure release downloaded
   get_url: 
@@ -27,7 +29,9 @@
     state: present
 
 - name: ensure base template has FreeBSD install
-  command: tar -xf "{{ freebsd_jails_template_download }}/{{ item.file }}" -C "{{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }}" creates="{{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }}/{{ item.creates }}"
+  command: tar -xf "{{ freebsd_jails_template_download }}/{{ item.file }}" -C "{{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }}" 
+  args:
+    creates: "{{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }}/{{ item.creates }}"
   with_items: " {{freebsd_jails_default_install }}"
 
 - name: ensure minimal configuration is in template
@@ -37,15 +41,28 @@
     dest: "{{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }}/{{ item }}"
   with_items: "{{ freebsd_jails_minimal_conf }}"
 
+- name: ensure /etc/freebsd-update-jails.conf
+  copy:
+    src: /etc/freebsd-update.conf
+    dest: /etc/freebsd-update-jails.conf
+    force: no
+    remote_src: yes
+
+- name: ensure components reflect the jail components
+  lineinfile:
+    dest: /etc/freebsd-update-jails.conf
+    regexp: "^Components"
+    line: Components world
+
 - name: ensure template updates are fetched
-  command: freebsd-update --not-running-from-cron -b {{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }} fetch
+  command: freebsd-update --not-running-from-cron -b {{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }} -f /etc/freebsd-update-jails.conf fetch
   register: updates_fetched
   changed_when: "'No updates needed' not in updates_fetched.stdout"
   environment: 
     UNAME_r: "{{ freebsd_jails_release }}"
 
 - name: ensure template is updated if updates were fetched
-  command: freebsd-update --not-running-from-cron -b {{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }} install
+  command: freebsd-update --not-running-from-cron -b {{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }} -f /etc/freebsd-update-jails.conf install
   environment: 
     UNAME_r: "{{ freebsd_jails_release }}"
   when: updates_fetched.changed
@@ -54,6 +71,7 @@
   command: freebsd-update -b {{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }} IDS
   environment: 
     UNAME_r: "{{ freebsd_jails_release }}"
+  when: updates_fetched.changed
 
 - name: ensure jail.conf contains jail stanzas
   blockinfile:
