@@ -84,6 +84,12 @@ freebsd_jails_template_version:     "{{ ansible_date_time.iso8601_micro }}"
 **freebsd\_jails\_template\_user\_keys** provide a github like url that contains the public SSH keys to be added in _authorized\_keys_ for the support user.  
 **freebsd\_jails\_template\_user\_sudo** determine if sudo should be installed into the jail and the wheel group added by default (_TODO: make this more flexible_)
 
+```
+freebsd_jails_base_template_noupdate: no
+```
+
+Setting **freebsd\_jails\_base\_template\_noupdate** to yes basically skips the role if the template already exists; This allows iterating quicker over development.
+
 Dependencies
 ------------
 

@@ -1,0 +1,167 @@
+---
+
+- name: ensure base template dataset
+  zfs:
+    name: "{{ freebsd_jails_template_dataset }}/{{ freebsd_jails_base_template_name }}"
+    state: present
+
+- name: ensure base template has FreeBSD install
+  command: tar -xf "{{ freebsd_jails_template_download }}/{{ item.file }}" -C "{{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }}"
+  args:
+    creates: "{{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }}/{{ item.creates }}"
+  with_items: " {{freebsd_jails_default_install }}"
+
+- name: ensure minimal configuration is in template
+  copy:
+    remote_src: yes
+    src: "/{{ item }}"
+    dest: "{{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }}/{{ item }}"
+  with_items: "{{ freebsd_jails_minimal_conf }}"
+
+- name: ensure /etc/freebsd-update-jails.conf
+  copy:
+    src: /etc/freebsd-update.conf
+    dest: /etc/freebsd-update-jails.conf
+    force: no
+    remote_src: yes
+
+- name: ensure components reflect the jail components
+  lineinfile:
+    dest: /etc/freebsd-update-jails.conf
+    regexp: "^Components"
+    line: Components world
+
+- name: ensure template updates are fetched
+  command: freebsd-update --not-running-from-cron -b {{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }} -f /etc/freebsd-update-jails.conf fetch
+  register: updates_fetched
+  changed_when: "'No updates needed' not in updates_fetched.stdout"
+  environment:
+    UNAME_r: "{{ freebsd_jails_release }}"
+
+- name: ensure template is updated if updates were fetched
+  command: freebsd-update --not-running-from-cron -b {{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }} -f /etc/freebsd-update-jails.conf install
+  environment:
+    UNAME_r: "{{ freebsd_jails_release }}"
+  when: updates_fetched.changed
+
+- name: ensure template signatures are correct (freebsd-update IDS)
+  command: freebsd-update -b {{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }} IDS
+  environment:
+    UNAME_r: "{{ freebsd_jails_release }}"
+  when: updates_fetched.changed
+
+- name: ensure jail.conf contains jail stanzas
+  blockinfile:
+    dest: /etc/jail.conf
+    create: yes
+    marker: "# {mark} Jail {{ freebsd_jails_base_template_name }}"
+    content: |
+      {{ freebsd_jails_base_template_name }} {
+        exec.start = '';
+        exec.stop = '';
+        interface = {{ freebsd_jails_template_if }};
+        ip4.addr = {{ freebsd_jails_template_ip }};
+        mount.nodevfs;
+        path = "{{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }}";
+        persist;
+      }
+
+- name: ensure template jail is started
+  command: jail -v -cm {{ freebsd_jails_base_template_name }}
+
+- name: ensure pkg repository override folder exists
+  file:
+    path: "{{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }}/usr/local/etc/pkg/repos/"
+    state: directory
+  when: "freebsd_jails_base_template_pkg_branch != 'quarterly'"
+
+- name: optionally set latest pkg branch over quarterly
+  blockinfile:
+    dest: "{{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }}/usr/local/etc/pkg/repos/FreeBSD.conf"
+    create: yes
+    marker: "# {mark} Ansible managed"
+    content: |
+      FreeBSD: { url: "pkg+http://pkg.FreeBSD.org/${ABI}/{{ freebsd_jails_base_template_pkg_branch }}" }
+  when: "freebsd_jails_base_template_pkg_branch != 'quarterly'"
+
+- name: ensure package db is updated in jail
+  command: jexec {{ freebsd_jails_base_template_name }} env ASSUME_ALWAYS_YES=yes pkg update
+  register: pkg_update
+  changed_when: "'All repositories are up-to-date.' not in pkg_update.stdout"
+
+- name: ensure packages are installed
+  command: jexec {{ freebsd_jails_base_template_name }}  env ASSUME_ALWAYS_YES=yes pkg install {% for pkg in freebsd_jail_template_all_pkg %} {{ pkg }} {% endfor %}
+  register: pkg_install
+  changed_when: "'The most recent version of packages are already installed' not in pkg_install.stdout"
+
+- name: ensure packages are updated
+  command: jexec {{ freebsd_jails_base_template_name }} env ASSUME_ALWAYS_YES=yes pkg upgrade
+  register: pkg_upgrade
+  changed_when: "'Your packages are up to date.' not in pkg_upgrade.stdout"
+
+- name: ensure user is created
+  command: jexec {{ freebsd_jails_base_template_name }} pw useradd {{ freebsd_jails_template_user }} -g wheel -s /bin/sh -w no -m creates={{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }}/home/{{ freebsd_jails_template_user }}
+  when: "{{ freebsd_jails_template_user is defined }}"
+  register: template_user_created
+
+- name: ensure ssh folder is setup if user is defined
+  command: jexec -U {{ freebsd_jails_template_user }} {{ freebsd_jails_base_template_name }} mkdir -p /home/{{ freebsd_jails_template_user }}/.ssh
+  when: template_user_created.changed
+
+- name: ensure key is downloaded into authorized_keys
+  command: jexec -U {{ freebsd_jails_template_user }} {{ freebsd_jails_base_template_name }} curl -o /home/{{ freebsd_jails_template_user }}/.ssh/authorized_keys {{ freebsd_jails_template_user_keys }} creates={{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }}/home/{{ freebsd_jails_template_user }}/.ssh/authorized_keys
+  register: keyloaded
+  when: template_user_created.changed
+
+- name: ensure correct folder perms .ssh
+  command: jexec -U {{ freebsd_jails_template_user }} {{ freebsd_jails_base_template_name }} chmod 700 /home/{{ freebsd_jails_template_user }}/.ssh
+  when: keyloaded.changed
+
+- name: ensure correct file perms authorized_files
+  command: jexec -U {{ freebsd_jails_template_user }} {{ freebsd_jails_base_template_name }} chmod 600 /home/{{ freebsd_jails_template_user }}/.ssh/authorized_keys
+  when: keyloaded.changed
+
+- name: ensure sudo if freebsd_jails_template_user_sudo
+  command: pkg -j {{ freebsd_jails_base_template_name }} install sudo
+  register: sudosetup
+  when: freebsd_jails_template_user_sudo
+  environment:
+    ASSUME_ALWAYS_YES: "YES"
+
+- name: ensure wheel group in sudoers without password
+  blockinfile:
+    dest: "{{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }}/usr/local/etc/sudoers.d/wheel"
+    create: yes
+    content: |
+      %wheel ALL=(ALL) NOPASSWD: ALL
+  when: freebsd_jails_template_user_sudo
+
+- name: create new snapshot
+  command: zfs snapshot "{{ freebsd_jails_template_dataset }}/{{ freebsd_jails_base_template_name }}@{{ freebsd_jails_template_version }}"
+  register: template_snapshot_created
+  when: "updates_fetched.changed or pkg_upgrade.changed or pkg_install.changed or keyloaded.changed or sudosetup.changed"
+
+- name: add packages to snapshot packages properties
+  shell: zfs set {{ freebsd_jails_template_pkgs_prop }}="$(pkg -j {{ freebsd_jails_base_template_name }} info | cut -f1 -d' ')" "{{ freebsd_jails_template_dataset }}/{{ freebsd_jails_base_template_name }}@{{ freebsd_jails_template_version }}"
+  when: template_snapshot_created.changed
+
+- name: ensure template jail is stopped
+  command: jail -v -r {{ freebsd_jails_base_template_name }}
+
+- name: ensure template is commented out in the /etc/jail.conf
+  blockinfile:
+    dest: /etc/jail.conf
+    create: yes
+    marker: "# {mark} Jail {{ freebsd_jails_base_template_name }}"
+    content: |
+      #{{ freebsd_jails_base_template_name }} {
+      #  exec.start = '';
+      #  exec.stop = '';
+      #  interface = {{ freebsd_jails_template_if }};
+      #  ip4.addr = {{ freebsd_jails_template_ip }};
+      #  mount.nodevfs;
+      #  path = "{{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }}";
+      #  persist;
+      #}
+
+

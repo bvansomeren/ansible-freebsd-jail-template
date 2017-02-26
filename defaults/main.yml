@@ -39,3 +39,5 @@ freebsd_jails_template_version:     "{{ ansible_date_time.iso8601_micro }}"
 #freebsd_jails_template_user: "coffeesprout"
 #freebsd_jails_template_user_keys: "https://github.com/bvansomeren.keys"
 freebsd_jails_template_user_sudo: no
+
+freebsd_jails_base_template_noupdate: no
