@@ -122,7 +122,7 @@
   when: keyloaded.changed
 
 - name: ensure sudo if freebsd_jails_template_user_sudo
-  command: pkg -j {{ freebsd_jails_base_template_name }} install sudo
+  command: jexec {{ freebsd_jails_base_template_name }} env ASSUME_ALWAYS_YES=yes pkg install sudo
   register: sudosetup
   when: freebsd_jails_template_user_sudo
   environment:
