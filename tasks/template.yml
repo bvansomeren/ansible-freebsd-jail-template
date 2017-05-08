@@ -101,7 +101,7 @@
 
 - name: ensure user is created
   command: jexec {{ freebsd_jails_base_template_name }} pw useradd {{ freebsd_jails_template_user }} -g wheel -s /bin/sh -w no -m creates={{ freebsd_jails_template_mount }}/{{ freebsd_jails_base_template_name }}/home/{{ freebsd_jails_template_user }}
-  when: "{{ freebsd_jails_template_user is defined }}"
+  when: freebsd_jails_template_user is defined
   register: template_user_created
 
 - name: ensure ssh folder is setup if user is defined
